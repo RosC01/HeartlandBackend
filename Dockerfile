@@ -11,6 +11,6 @@ RUN apk add --no-cache openssl libgcc libstdc++ gcompat
 RUN npx prisma generate
 RUN npm prune --production
 
-EXPOSE 5000
+EXPOSE 10000
 
 CMD ["sh", "-c", "npx prisma migrate deploy && node src/index.js"]
