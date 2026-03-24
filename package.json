@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Heartland Field Services — Invoice Management API",
   "main": "src/index.js",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
