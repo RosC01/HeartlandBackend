@@ -2,3 +2,220 @@ generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl"]
 }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  username   String    @unique
+  email      String?   @unique
+  password   String
+  role       String    @default("staff")
+  employeeId Int?      @unique   // links a worker login to their Employee record
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+}
+
+model Client {
+  id          Int       @id @default(autoincrement())
+  clientCode  String?   @unique
+  clientName  String
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  phoneNumber String?
+  email       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sites       Site[]
+  fields      Field[]
+  workLogs    WorkLog[]
+  invoices    Invoice[]
+  workOrders  WorkOrder[]
+}
+
+model Site {
+  id        Int      @id @default(autoincrement())
+  siteCode  String?  @unique
+  siteName  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  clients     Client[]
+  fields      Field[]
+  workLogs    WorkLog[]
+  workOrders  WorkOrder[]
+}
+
+model Field {
+  id         Int      @id @default(autoincrement())
+  fieldCode  String?  @unique
+  fieldName  String
+  siteId    Int
+  acres     Float?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  clients     Client[]
+  workLogs    WorkLog[]
+  workOrders  WorkOrder[]
+}
+
+model Employee {
+  id           Int      @id @default(autoincrement())
+  employeeCode String?  @unique
+  workerName   String
+  title      String?
+  phone      String?
+  email      String?
+  active     Boolean  @default(true)
+  type       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  workLogs   WorkLog[]
+  workOrders WorkOrder[]
+  user       User?
+}
+
+// ?? Work Orders ????????????????????????????????????????????????????????????
+model WorkOrder {
+  id          Int       @id @default(autoincrement())
+  orderNumber String    @unique
+  status      String    @default("Created")  // Created | Assigned | InProgress | Completed
+  clientId    Int
+  siteId      Int?
+  fieldId     Int?
+  workerId    Int?
+  serviceType String?
+  season      String?
+  notes       String?
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client   Client    @relation(fields: [clientId], references: [id])
+  site     Site?     @relation(fields: [siteId], references: [id])
+  field    Field?    @relation(fields: [fieldId], references: [id])
+  worker   Employee? @relation(fields: [workerId], references: [id])
+  workLogs WorkLog[]
+}
+
+model Rate {
+  id            Int       @id @default(autoincrement())
+  serviceType   String
+  details       String?
+  ratePerGallon Float?
+  ratePerMile   Float?
+  hourlyRate    Float?
+  ratePerAcre   Float?
+  isActive      Boolean   @default(true)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+}
+
+model WorkLog {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  date      DateTime
+  dateEnd   DateTime?
+  season    String?
+
+  workerId   Int
+  clientId   Int
+  clientName String
+  siteId     Int
+  fieldId    Int?
+
+  serviceType   String?
+  crew          String?
+  details       String?
+  gallons       Float?
+  waylenGallons Float?
+  mileage       Float?
+  hours         Float?
+  acres         Float?
+  suggestedRate Float?
+  actualRate    Float?
+  notes         String?
+  ratePerGallon Float?
+  ratePerMile   Float?
+  hourlyRate    Float?
+  ratePerAcre   Float?
+  extraCharge     Float?
+  lineTotal       Float   @default(0)
+  totalDuePerAcre Float?
+  actualCostPerGallon Float?
+
+  workOrderId      Int?
+  billingStatus    String   @default("Unbilled")  // Unbilled | ReadyForBilling | Invoiced | Sent | Paid
+  billed           Boolean  @default(false)
+  invoiceSent      Boolean  @default(false)
+  dateSent         DateTime?
+  paymentReceived  Boolean  @default(false)
+  dateReceived     DateTime?
+  accountsReceivable Float  @default(0)
+  pitStartInches   Float?
+  pitEndInches     Float?
+  invoiceId        Int?
+  legacyInvoiceNumber String?  // raw invoice # stored on import when no Invoice record exists yet
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  worker     Employee   @relation(fields: [workerId], references: [id])
+  client     Client     @relation(fields: [clientId], references: [id])
+  site       Site       @relation(fields: [siteId], references: [id])
+  field      Field?     @relation(fields: [fieldId], references: [id])
+  invoice    Invoice?   @relation(fields: [invoiceId], references: [id])
+  workOrder  WorkOrder? @relation(fields: [workOrderId], references: [id])
+}
+
+model Invoice {
+  id                   Int       @id @default(autoincrement())
+  invoiceNumber        String    @unique
+  legacyInvoiceNumber  String?   // original ref # from before the digital invoice system
+  clientId             Int
+  startDate            DateTime
+  endDate              DateTime
+  totalAmount          Float     @default(0)
+  amountPaid           Float     @default(0)
+  status               String    @default("Outstanding")  // Outstanding | Sent | PartiallyPaid | Paid | Closed
+  invoiceDate          DateTime  @default(now())
+  dueDate              DateTime?
+  sentAt               DateTime?
+  notes                String?
+  companyData          String?   // JSON snapshot of the company profile used for this invoice
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  client   Client    @relation(fields: [clientId], references: [id])
+  workLogs WorkLog[]
+  payments Payment[]
+}
+
+model Payment {
+  id         Int      @id @default(autoincrement())
+  invoiceId  Int
+  amount     Float
+  note       String?
+  recordedAt DateTime @default(now())
+
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// Key-value store for admin-managed app settings (SMTP, company info, etc.)
+model AppSetting {
+  key       String   @id
+  value     String   // encrypted for sensitive keys (prefix "enc:")
+  updatedAt DateTime @updatedAt
+}
