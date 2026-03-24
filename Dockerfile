@@ -6,9 +6,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+COPY prisma ./prisma/
 
 RUN apk add --no-cache openssl libgcc libstdc++ gcompat
-COPY prisma ./prisma/
 RUN npx prisma generate
 RUN npm prune --production
 

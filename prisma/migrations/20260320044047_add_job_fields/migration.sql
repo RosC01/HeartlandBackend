@@ -1,4 +1,7 @@
 -- AlterTable
+ALTER TABLE "User" ADD COLUMN "employeeId" INTEGER UNIQUE REFERENCES "Employee"("id");
+
+-- AlterTable
 ALTER TABLE "Employee" ADD COLUMN     "type" TEXT;
 
 -- AlterTable
